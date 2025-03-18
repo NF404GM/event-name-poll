@@ -337,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateVotePercentages() {
-        const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
+        const totalVotes = votes.length * 3; // Each vote can contribute a maximum of 3 points (2 for primary, 1 for secondary)
         
         optionCards.forEach(card => {
             const name = card.dataset.name;
