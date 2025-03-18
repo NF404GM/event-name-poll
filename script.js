@@ -48,7 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
         'Sonosupa': 0,
         'Solus Ultra': 0,
         'Subtace': 0,
-        'Aux&Free': 0
+        'Aux&Free': 0,
+        'I.N.T.L': 0
     };
     
     // Initialize futuristic visualization
@@ -111,18 +112,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = prompt('Enter password to reset the poll:');
         if (password === 'lasers1024') {
             console.log('Correct password entered. Resetting poll.');
-            localStorage.removeItem('eventNameVotes');
-            console.log('Local storage cleared.');
-            Object.keys(voteCounts).forEach(key => {
-                voteCounts[key] = 0;
-            });
-            console.log('Vote counts reset.');
-            updateVotePercentages();
-            renderResultsChart();
-            renderTeamVotes();
-            resetForm();
-            console.log('UI updated to reflect reset state.');
-            alert('Poll has been reset.');
+            try {
+                localStorage.removeItem('eventNameVotes');
+                console.log('Local storage cleared.');
+                votes = [];
+                Object.keys(voteCounts).forEach(key => {
+                    voteCounts[key] = 0;
+                });
+                console.log('Vote counts reset.');
+                updateVotePercentages();
+                renderResultsChart();
+                renderTeamVotes();
+                updateVisualization();
+                resetForm();
+                console.log('UI updated to reflect reset state.');
+                alert('Poll has been reset.');
+            } catch (error) {
+                console.error('Error during poll reset:', error);
+                alert('An error occurred while resetting the poll. Please try again.');
+            }
         } else {
             console.log('Incorrect password entered. Reset aborted.');
             alert('Incorrect password.');
@@ -264,11 +272,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update vote counts
         calculateVoteCounts();
         
-        // Save to localStorage
+        // Save to localStorage with error handling
         try {
             localStorage.setItem('eventNameVotes', JSON.stringify(votes));
         } catch (error) {
             console.error('Error saving votes:', error);
+            if (error.name === 'QuotaExceededError' || error.code === 22) {
+                showToast('Storage limit reached. Please clear some data or contact administrator.');
+                votes.pop(); // Remove the last vote since we couldn't save it
+                calculateVoteCounts(); // Recalculate counts
+                return;
+            }
         }
         
         // Update UI
@@ -322,28 +336,36 @@ document.addEventListener('DOMContentLoaded', function() {
             voteCounts[key] = 0;
         });
         
-        // Count primary and secondary votes
+        // Count primary and secondary votes with equal weight
         votes.forEach(vote => {
-            // Count primary votes (weight: 2)
+            // Count primary votes (1 point)
             if (voteCounts.hasOwnProperty(vote.primary.choice)) {
-                voteCounts[vote.primary.choice] += 2;
+                voteCounts[vote.primary.choice] += 1;
             }
             
-            // Count secondary votes (weight: 1)
+            // Count secondary votes (1 point)
             if (vote.secondary && voteCounts.hasOwnProperty(vote.secondary.choice)) {
                 voteCounts[vote.secondary.choice] += 1;
             }
         });
+        console.log('Vote counts updated:', voteCounts);
     }
-    
+
     function updateVotePercentages() {
-        const totalVotes = votes.length * 3; // Each vote can contribute a maximum of 3 points (2 for primary, 1 for secondary)
+        const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
+        console.log('Total votes:', totalVotes);
         
         optionCards.forEach(card => {
             const name = card.dataset.name;
             const percentageElement = card.querySelector('.vote-percentage');
-            const voteCount = voteCounts[name] || 0; // Ensure voteCount is defined
-            const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+            const voteCount = voteCounts[name] || 0;
+            let percentage = 0;
+            
+            if (totalVotes > 0) {
+                percentage = Math.round((voteCount / totalVotes) * 100);
+            }
+            
+            console.log(`Option ${name}: ${voteCount} votes, ${percentage}%`);
             percentageElement.textContent = `${percentage}%`;
             
             // Animate percentage change
@@ -476,57 +498,46 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function updateVisualization() {
-        // Remove old data points and lines
-        const oldPoints = votingVisualization.querySelectorAll('.data-point, .data-line');
-        oldPoints.forEach(point => point.remove());
-        
+        const visualization = document.getElementById('voting-activity-visualization');
         const totalVotes = Object.values(voteCounts).reduce((sum, count) => sum + count, 0);
-        if (totalVotes === 0) return;
         
-        // Get options sorted by votes
-        const sortedOptions = Object.keys(voteCounts).sort((a, b) => voteCounts[b] - voteCounts[a]);
+        // Clear previous visualization
+        visualization.innerHTML = '';
         
-        // Create data points
-        let prevPoint = null;
-        sortedOptions.forEach((option, index) => {
-            const percentage = Math.round((voteCounts[option] / totalVotes) * 100);
-            const x = 10 + (index * (80 / (sortedOptions.length - 1 || 1)));
-            const y = 80 - (percentage * 0.7);
+        if (totalVotes === 0) {
+            visualization.innerHTML = '<div class="no-votes-message">No votes yet. Be the first to vote!</div>';
+            return;
+        }
+        
+        // Create visualization container
+        const visualContainer = document.createElement('div');
+        visualContainer.className = 'vote-visualization-container';
+        
+        // Add bars for each option
+        Object.entries(voteCounts).forEach(([name, count], index) => {
+            const percentage = Math.round((count / totalVotes) * 100);
             
-            // Create data point
-            const dataPoint = document.createElement('div');
-            dataPoint.className = 'data-point';
-            dataPoint.style.left = `${x}%`;
-            dataPoint.style.top = `${y}%`;
-            dataPoint.dataset.option = option;
-            dataPoint.dataset.percentage = percentage;
-            votingVisualization.appendChild(dataPoint);
+            // Create bar container
+            const barContainer = document.createElement('div');
+            barContainer.className = 'vote-bar-container';
             
             // Create label
             const label = document.createElement('div');
             label.className = 'vote-label';
-            label.textContent = `${option}: ${percentage}%`;
-            label.style.left = `${x}%`;
-            label.style.top = `${y}%`;
-            votingVisualization.appendChild(label);
+            label.textContent = `${name}: ${percentage}%`;
             
-            // Create line connecting points
-            if (prevPoint) {
-                const prevX = parseFloat(prevPoint.style.left);
-                const prevY = parseFloat(prevPoint.style.top);
-                
-                const length = Math.sqrt(Math.pow(x - prevX, 2) + Math.pow(y - prevY, 2));
-                const angle = Math.atan2(y - prevY, x - prevX) * (180 / Math.PI);
-                
-                const line = document.createElement('div');
-                line.className = 'data-line';
-                line.style.width = `${length}%`;
-                line.style.transform = `translate(${prevX}%, ${prevY}%) rotate(${angle}deg)`;
-                votingVisualization.appendChild(line);
-            }
+            // Create bar
+            const bar = document.createElement('div');
+            bar.className = 'vote-bar';
+            bar.style.width = `${percentage}%`;
+            bar.style.backgroundColor = `hsl(${index * 60}, 70%, 50%)`;
             
-            prevPoint = dataPoint;
+            barContainer.appendChild(label);
+            barContainer.appendChild(bar);
+            visualContainer.appendChild(barContainer);
         });
+        
+        visualization.appendChild(visualContainer);
     }
     
     function addVoteEffect(option, color, type) {
