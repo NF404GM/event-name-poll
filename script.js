@@ -105,6 +105,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Enhanced Reset Poll Function
+    function resetPoll() {
+        console.log('Attempting to reset the poll.');
+        const password = prompt('Enter password to reset the poll:');
+        if (password === 'lasers1024') {
+            console.log('Correct password entered. Resetting poll.');
+            localStorage.removeItem('eventNameVotes');
+            console.log('Local storage cleared.');
+            Object.keys(voteCounts).forEach(key => {
+                voteCounts[key] = 0;
+            });
+            console.log('Vote counts reset.');
+            updateVotePercentages();
+            renderResultsChart();
+            renderTeamVotes();
+            resetForm();
+            console.log('UI updated to reflect reset state.');
+            alert('Poll has been reset.');
+        } else {
+            console.log('Incorrect password entered. Reset aborted.');
+            alert('Incorrect password.');
+        }
+    }
+
+    // Add event listener to reset button
+    document.getElementById('reset-poll').addEventListener('click', resetPoll);
+
     // Functions
     function selectPrimaryChoice(name, card, button) {
         // Reset previous selection

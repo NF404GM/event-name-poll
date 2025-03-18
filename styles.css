@@ -130,6 +130,24 @@ body {
     color: var(--danger-color);
 }
 
+.reset-button {
+    background-color: var(--danger-color);
+    color: var(--text-light);
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    transition: background-color 0.3s ease;
+}
+
+.reset-button:hover {
+    background-color: #d32f2f;
+}
+
 /* Main Content Styles */
 .main-content {
     flex: 1;
