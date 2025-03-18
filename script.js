@@ -342,7 +342,8 @@ document.addEventListener('DOMContentLoaded', function() {
         optionCards.forEach(card => {
             const name = card.dataset.name;
             const percentageElement = card.querySelector('.vote-percentage');
-            const percentage = totalVotes > 0 ? Math.round((voteCounts[name] / totalVotes) * 100) : 0;
+            const voteCount = voteCounts[name] || 0; // Ensure voteCount is defined
+            const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
             percentageElement.textContent = `${percentage}%`;
             
             // Animate percentage change
